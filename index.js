@@ -71,7 +71,7 @@ Client.on("message", (message) => {
 
     if (command == "trial") {
 
-        if (argument.length < 4) {
+        if (argument.length < 5) {
             message.channel.send("Search is too short, please provide a longer search.")
             return
         }
