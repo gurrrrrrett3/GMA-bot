@@ -14,7 +14,8 @@ db.defaults({
         mountains: [],
         trials: [],
         users: [],
-        links:[]
+        links:[],
+        userData: []
     })
     .write()
 
@@ -22,6 +23,7 @@ db.defaults({
     var trials = db.get("trials")
     var users = db.get("users")
     var links = db.get("links")
+    var userData = db.get("userData")
 
 //fuzzy
 
@@ -32,6 +34,7 @@ const FuzzySet = require("fuzzyset.js")
 const fs = require('fs');
 const readline = require('readline');
 const {google} = require('googleapis');
+const { eventNames } = require("process");
 
 
 
@@ -55,6 +58,10 @@ Client.on("message", (message) => {
         return
     }
 
+    if (message.content.includes("@everyone") || message.content.includes("@here")) {
+        return
+    }
+
     const msg = message.content.toLowerCase();
     var command = msg.replace(prefix, '').split(' ')[0]
    
@@ -70,15 +77,14 @@ Client.on("message", (message) => {
         UpdateDatabase()
     }
 
-
     if (command == "trial") {
 
-        if (argument.length < 4) {
-            message.channel.send("Search is too short, please provide a longer search.")
-            return
-        }
         const list = FuzzySet(trials.value())
         console.log(list.get(argument))
+        if (list.get(argument) == null) {
+            message.channel.send(`Sorry, I couldn't fimd a trial with the name: ${argument}. Please refine your search.`)
+            return
+        }
         const trial = list.get(argument)[0][1]
 
         const trialData = mountains.find({name: trial}).value()
@@ -142,6 +148,20 @@ Client.on("message", (message) => {
                 list.push(user)
             }
             
+        }
+
+        //check if the message has a mention and if it does, check for a linked account
+
+        if (message.mentions.members.size > 0) {
+            if (links.find({id: message.mentions.members.first().user.id}).value() == undefined) {
+                //not a linked account, so return an error
+                message.channel.send("Sorry, that user hasn't linked their account yet.")
+                return
+            } else {
+
+                argument = links.find({id: message.mentions.members.first().user.id}).value().name
+
+            }
         }
 
         list = FuzzySet(list)
@@ -220,9 +240,9 @@ Client.on("message", (message) => {
         embed.setColor("#ffffff")
         message.channel.send(embed)
 
-}
+    }
 
-if (command == "link") {
+    if (command == "link") {
 //links your discord account to your leaderboard entry, which allows you to enable notifs and to get your userdata by ping
 
  //make userlist as there is no point in storing it
@@ -269,7 +289,146 @@ if (command == "link") {
          message.channel.send(`Sorry, that username doesn't exist.  Make sure you typed it correctly!`)
      }
 
-}
+}   
+
+    if (command == "user") {
+          //make userlist as there is no point in storing it
+          const userData = users.value()
+
+          var list = []
+  
+          for (var i = 0; i < userData.length; i++) {
+              const userObj = users.find({id: i}).value()
+              if (userObj != undefined) {
+                  const user = userObj.user
+                  list.push(user)
+              }
+              
+          }
+          
+          //check if the message has a mention and if it does, check for a linked account
+          
+          var linked = false
+
+
+          if (message.mentions.members.size > 0) {
+              if (links.find({id: message.mentions.members.first().user.id}).value() == undefined) {
+                  //not a linked account, so return an error
+                  message.channel.send("Sorry, that user hasn't linked their account yet.")
+                  return
+              } else {
+  
+                  argument = links.find({id: message.mentions.members.first().user.id}).value().name
+                
+                  linked = true
+                  
+              }
+          }
+  
+          list = FuzzySet(list)
+          const userGuess = list.get(argument)
+          console.log(userGuess)
+          if(userGuess == null) {
+              message.channel.send(`Sorry, I couldn't find a user with the name: ${argument}.  Please refine your search.`)
+              return
+          }
+  
+          const id = users.find({user: userGuess[0][1]}).value().id
+          const user = userGuess[0][1]
+
+          //now let's compile data, yes, I'm coping so many things
+          //also, fuck functions
+
+          var wrs = []
+          //now we need to get all of the WRs that this user has
+          //this will not be easy, as we need to grab every track and sort by score
+          //then grab the first one
+          
+          //(yes, I'm copying the code from above)
+  
+          const l = mountains.value().length
+  
+          for (var idd = 0; idd < l; idd ++) {
+  
+          const trial = trials.value()[idd]
+  
+          const trialData = mountains.find({name: trial}).value()
+          
+          
+  
+          var scores = []
+          for (var i = 3; i < length; i++) {
+              var score = trialData[i]
+              if (!(score == "" || score == undefined)) {
+              
+              scores.push({
+                  user: i,
+                  score: score
+              })        
+              
+          }
+  
+         
+      }
+  
+     
+  
+          if (trialData.asc) {
+              scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
+          } else {
+              scores.sort((a,b) => a.score.replace(",","") - b.score.replace(",",""))
+          }
+  
+          if (scores[0].user == id) {
+              wrs.push({
+                  name: trial,
+                  score: scores[0].score 
+              })
+          }
+  
+          i++
+      }
+      console.log(wrs) 
+
+      //update userdata
+
+      var userDataObj = {
+          Nickname: user,
+          wrs: wrs.length,
+          linked: linked,
+          
+      }
+
+      const linkedUser = links.find({name: user.toLowerCase()}).value()
+
+      if (linkedUser != undefined) {
+        userDataObj.linkedName = Client.users.cache.get(linkedUser.id).username
+        userDataObj.linked = true
+      } else {
+        userDataObj.linkedName = "Unknown"
+      }
+
+      console.log(userDataObj)
+
+      var check = ""
+
+      if (userDataObj.linked) {
+          check = "✅"
+      } else {
+          check = "❌"
+      }
+
+      var embed = new Discord.MessageEmbed()
+
+      embed.setTitle(`${user}'s Profile`)
+      embed.addField("World Records", userDataObj.wrs)
+      embed.addField("Discord Linked", check)
+      embed.addField("Discord Username", userDataObj.linkedName)
+      embed.setFooter(`${Math.round(list.get(argument)[0][0] * 100)}% Certain`)
+      embed.setTimestamp()
+
+      message.channel.send(embed)
+    }
 })
 
 
