@@ -12,18 +12,22 @@ const db = low(adapter)
 
 db.defaults({
         mountains: [],
+        oldmountain: [],
         trials: [],
         users: [],
         links:[],
-        userData: []
+        notif: [],
+        global: []
     })
     .write()
 
     var mountains = db.get("mountains")
+    var oldmountain = db.get("oldmountain")
     var trials = db.get("trials")
     var users = db.get("users")
     var links = db.get("links")
-    var userData = db.get("userData")
+    var notif = db.get("notif")
+    var global = db.get("global")
 
 //fuzzy
 
@@ -53,6 +57,36 @@ Client.on("ready", () => {
 
 Client.on("message", (message) => {
 
+
+     //check time since last update
+
+     
+     var globals
+
+     if (global.find({id: "update"}).value() == undefined) {
+        globals = {
+            id: "update",
+            lastUpdate: 0
+        }
+     } else {
+        
+        globals = global.find({id: "update"}).value()
+
+     }
+
+     if (Date.now() - globals.lastUpdate > 3600000 ) {
+ 
+         globals.lastUpdate = Date.now()
+         global.find({id: "update"}).remove().write()
+         global.push(globals).write()
+
+
+
+         UpdateDatabase()
+     }
+
+
+
     if (!message.content.startsWith(prefix)) {
         return
     }
@@ -60,6 +94,9 @@ Client.on("message", (message) => {
     if (message.content.includes("@everyone") || message.content.includes("@here")) {
         return
     }
+
+
+   
 
     const msg = message.content.toLowerCase();
     var command = msg.replace(prefix, '').split(' ')[0]
@@ -71,8 +108,10 @@ Client.on("message", (message) => {
     console.log(command)
     console.log(argument)
 
+    //actual commands
+
     if (command == "update") {
-        message.channel.send("Updating Database...")
+      message.channel.send("Updating Database...")
         UpdateDatabase()
     }
 
@@ -288,7 +327,7 @@ Client.on("message", (message) => {
          message.channel.send(`Sorry, that username doesn't exist.  Make sure you typed it correctly!`)
      }
 
-}   
+    }   
 
     if (command == "user") {
           //make userlist as there is no point in storing it
@@ -428,6 +467,70 @@ Client.on("message", (message) => {
 
       message.channel.send(embed)
     }
+
+    if (command == "notif") {
+        if (links.find({id: message.author.id}).value() == undefined) {
+            message.channel.send("Sorry, you need to link your discord to your LB username, as well as have at least 1 score posted to the LB.  Use =link {lb username} to link.")
+        } else {
+            if (notif.find({id: message.author.id}).value() == undefined) {
+                const notifDefault = {
+                    id: message.author.id,
+                    name: links.find({id: message.author.id}).value().name,
+                    wrUpdates: true
+                }
+
+                notif.push(notifDefault).write()
+            }
+
+            var notifData = notif.find({id: message.author.id}).value()
+
+            var embed = new Discord.MessageEmbed()
+            embed.setTitle(`${message.member.displayName}'s Notification Panel`)
+            embed.addField("Get a DM when one of your WR's is broken", `🟥: ${toggle(notifData.wrUpdates)}`)
+            embed.setTimestamp()
+            embed.setFooter("This message is only active for 60 seconds.")
+
+            message.channel.send(embed).then(sentMessage => {
+                sentMessage.react("🟥")
+                const filter = (reaction, user) => {
+                    return reaction.emoji.name === '🟥' && user.id === message.author.id;
+                };
+                
+                const collector = sentMessage.createReactionCollector(filter, { time: 60000 });
+                
+                collector.on('collect', (reaction, user) => {
+                    if (notifData.wrUpdates) {
+                        notifData.wrUpdates = false
+                    } else {
+                        notifData.wrUpdates = true
+                    }
+
+                    const newEmbed = new Discord.MessageEmbed()
+                    sentMessage.reactions.removeAll()
+                    .then(sentMessage => {
+                        sentMessage.react('🟥')
+                    })
+                    .catch(error => console.error('Failed to clear reactions: ', error));
+                    newEmbed.setTitle(`${message.member.displayName}'s Notification Panel`)
+                    newEmbed.addField("Get a DM when one of your WR's is broken", `🟥: ${toggle(notifData.wrUpdates)}`)
+                    newEmbed.setTimestamp()
+                    newEmbed.setFooter("This message is only active for 60 seconds.")
+                    sentMessage.edit(newEmbed)
+                });
+                
+                collector.on('end', collected => {
+                    const newEmbed = new Discord.MessageEmbed()
+                    newEmbed.setTitle(`${message.member.displayName}'s Notification Panel`)
+                    newEmbed.addField("Get a DM when one of your WR's is broken", `🟥: ${toggle(notifData.wrUpdates)}`)
+                    newEmbed.setTimestamp()
+                    newEmbed.setFooter("This message is no longer active.")
+                    sentMessage.edit(newEmbed)
+                });
+            })
+
+
+        }
+    }
 })
 
 
@@ -436,6 +539,14 @@ Client.on("message", (message) => {
 function UpdateDatabase() {
 
 console.log("Updating database...")
+
+//load the entire database into a variable, and then compare differences afterwards
+
+const preMountains = mountains.value()
+
+db.set("oldmountain", preMountains).write()
+
+oldmountain = db.get("oldmountain")
 
 
     // If modifying these scopes, delete token.json.
@@ -621,11 +732,158 @@ sheets.spreadsheets.values.get({
 
       })
     }
+
+    //compare the new database with the old one (and yes, I'm copying more code lmao)
+    var argument 
+    var compareA = []
+
+
+
+      var userData = users.value()
+
+      userData.map((data) => {
+        
+    if (notif.find({name: data.user.toLowerCase()}).value() == undefined) {
+        return
+    }
+
+    if (notif.find({name: data.user.toLowerCase()}).value().wrUpdates == false) {
+        return
+    }
+
+      argument = data.user
+
+      var wrs = []
+
+      const l = mountains.value().length
+
+      for (var idd = 0; idd < l; idd ++) {
+
+      const trial = trials.value()[idd]
+
+      const trialData = mountains.find({name: trial}).value()
+      
+      var scores = []
+      for (var i = 3; i < length; i++) {
+          var score = trialData[i]
+          if (!(score == "" || score == undefined)) {
+          
+          scores.push({
+              user: i,
+              score: score
+          })        
+          
+        } 
+  }
+
+      if (trialData.asc) {
+          scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
+      } else {
+          scores.sort((a,b) => a.score.replace(",","") - b.score.replace(",",""))
+      }
+
+      if (scores[0].user == id) {
+          wrs.push({
+              name: trial,
+              score: scores[0].score 
+          })
+      }
+
+      i++
+  }
+  console.log(wrs) 
+  const wrData = {
+      name: data.user.toLowerCase(),
+      wrs: wrs
+  }
+  compareA.push(wrData)
+})
+
+//now to use the old mountain data to compare and get differences
+
+var compareB = []
+
+
+
+ userData = users.value()
+
+userData.map((data) => {
+  
+if (notif.find({name: data.user.toLowerCase()}).value() == undefined) {
+  return
+}
+
+if (notif.find({name: data.user.toLowerCase()}).value().wrUpdates == false) {
+  return
+}
+
+argument = data.user
+
+var wrs = []
+
+const l = oldmountain.value().length
+
+for (var idd = 0; idd < l; idd ++) {
+
+const trial = trials.value()[idd]
+
+const trialData = oldmountain.find({name: trial}).value()
+
+var scores = []
+for (var i = 3; i < length; i++) {
+    var score = trialData[i]
+    if (!(score == "" || score == undefined)) {
+    
+    scores.push({
+        user: i,
+        score: score
+    })        
+    
+  } 
+}
+
+if (trialData.asc) {
+    scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
+} else {
+    scores.sort((a,b) => a.score.replace(",","") - b.score.replace(",",""))
+}
+
+if (users.find({id: scores[0].user}).value().id == data.id) {
+    wrs.push({
+        name: trial,
+        score: scores[0].score 
+    })
+}
+
+i++
+}
+console.log(wrs) 
+const wrData = {
+name: data.user.toLowerCase(),
+wrs: wrs
+}
+compareB.push(wrData)
+})
+
+console.log(compareA)
+console.log(compareB)
+
 })
 
 
 }
 
+}
+/**
+ * 
+ * @param {boolean} bool 
+ */
+function toggle(bool) {
+    if (bool) {
+        return "✅"
+    } else {
+        return "❌"
+    }
 }
 
 Client.login("ODI4NzM5OTAyNDc5OTI1Mjc5.YGt-LQ.C98aMbaI4laI-9NSYarBUvb52UM")
