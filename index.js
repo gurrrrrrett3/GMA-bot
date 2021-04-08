@@ -13,13 +13,15 @@ const db = low(adapter)
 db.defaults({
         mountains: [],
         trials: [],
-        users: []
+        users: [],
+        links:[]
     })
     .write()
 
     var mountains = db.get("mountains")
     var trials = db.get("trials")
     var users = db.get("users")
+    var links = db.get("links")
 
 //fuzzy
 
@@ -86,9 +88,6 @@ Client.on("message", (message) => {
             var score = trialData[i]
             if (!(score == "" || score == undefined)) {
             
-
-            
-
             scores.push({
                 user: users.find({id: i}).value().user,
                 score: score
@@ -97,6 +96,8 @@ Client.on("message", (message) => {
             
         }
     }
+
+   
 
         if (trialData.asc) {
             scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
@@ -108,6 +109,7 @@ Client.on("message", (message) => {
         embed.setTitle(trial)
         embed.setDescription(`DD: ${trialData.dd} TD: ${trialData.td}`)
         embed.setTimestamp()
+        embed.setColor("#ffffff")
         embed.setFooter(`${Math.round(list.get(argument)[0][0] * 100)}% Certain`)
 
         var embedLength
@@ -126,7 +128,148 @@ Client.on("message", (message) => {
         message.channel.send(embed)
 
     }
-    
+
+    if (command == "wr") {
+        //make userlist as there is no point in storing it
+        const userData = users.value()
+
+        var list = []
+
+        for (var i = 0; i < userData.length; i++) {
+            const userObj = users.find({id: i}).value()
+            if (userObj != undefined) {
+                const user = userObj.user
+                list.push(user)
+            }
+            
+        }
+
+        list = FuzzySet(list)
+        const userGuess = list.get(argument)
+        console.log(userGuess)
+        if(userGuess == null) {
+            message.channel.send(`Sorry, I couldn't find a user with the name: ${argument}.  Please refine your search.`)
+            return
+        }
+
+        const id = users.find({user: userGuess[0][1]}).value().id
+        const user = userGuess[0][1]
+
+        var wrs = []
+        //now we need to get all of the WRs that this user has
+        //this will not be easy, as we need to grab every track and sort by score
+        //then grab the first one
+        
+        //(yes, I'm copying the code from above)
+
+        const l = mountains.value().length
+
+        for (var idd = 0; idd < l; idd ++) {
+
+        const trial = trials.value()[idd]
+
+        const trialData = mountains.find({name: trial}).value()
+        
+        
+
+        var scores = []
+        for (var i = 3; i < length; i++) {
+            var score = trialData[i]
+            if (!(score == "" || score == undefined)) {
+            
+            scores.push({
+                user: i,
+                score: score
+            })        
+            
+        }
+
+       
+    }
+
+   
+
+        if (trialData.asc) {
+            scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
+        } else {
+            scores.sort((a,b) => a.score.replace(",","") - b.score.replace(",",""))
+        }
+
+        if (scores[0].user == id) {
+            wrs.push({
+                name: trial,
+                score: scores[0].score 
+            })
+        }
+
+        i++
+    }
+    console.log(wrs)
+
+    var desc = ""
+
+    wrs.forEach(element => {
+        desc = `${desc}\n **${element.name}**: ${element.score}\n`
+    });
+
+    var embed = new Discord.MessageEmbed()
+        embed.setTitle(`${user}'s World Records`)
+        embed.setDescription(desc)
+        embed.setTimestamp()
+        embed.setFooter(`${Math.round(list.get(argument)[0][0] * 100)}% Certain`)
+        embed.setColor("#ffffff")
+        message.channel.send(embed)
+
+}
+
+if (command == "link") {
+//links your discord account to your leaderboard entry, which allows you to enable notifs and to get your userdata by ping
+
+ //make userlist as there is no point in storing it
+ const userData = users.value()
+
+ var list = []
+
+ for (var i = 0; i < userData.length; i++) {
+     const userObj = users.find({id: i}).value()
+     if (userObj != undefined) {
+         const user = userObj.user.toLowerCase()
+         list.push(user)
+     }
+    }
+     
+     if (list.includes(argument)) {
+         //this is a valid username, so now check if it's already been linked
+
+         if (links.find({name: argument}).value() == undefined) {
+
+            //now lets stop people from claiming multiple accounts
+
+            if (links.find({id: message.author.id}).value() != undefined) {
+                message.channel.send(`Looks like you have already linked a username! Your account is linked to ${links.find({id: message.author.id}).value().name}`)
+                return
+            }
+
+            const linkData = {
+
+                name: argument,
+                id: message.author.id,
+                
+            }
+
+            links.push(linkData).write()
+
+            message.channel.send(`<@${message.member.user.id}>, your account has been linked to your leaderboard username: ${argument}.`)
+
+         } else {
+             message.channel.send(`Sorry, this leaderboard username has already been linked! If this is your username, please DM Gucci Garrett#9211 and he will fix it.`)
+         }
+
+     } else {
+         message.channel.send(`Sorry, that username doesn't exist.  Make sure you typed it correctly!`)
+     }
+
+}
 })
 
 
