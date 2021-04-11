@@ -660,7 +660,7 @@ function getData(auth) {
 
                     var asc
 
-                    if (dd > td) {
+                    if (challengeData.id < 155) {
                         asc = false
                     } else {
                         asc = true
@@ -865,8 +865,8 @@ wrs: wrs
 compareB.push(wrData)
 })
 
-console.log(compareA)
-console.log(compareB)
+console.log("A " + compareA)
+console.log("B " + compareB)
 
 })
 
@@ -887,4 +887,4 @@ function toggle(bool) {
 }
 
 Client.login("ODI4NzM5OTAyNDc5OTI1Mjc5.YGt-LQ.C98aMbaI4laI-9NSYarBUvb52UM")
-
+ 
