@@ -4132,6 +4132,10 @@
     }
   ],
   "global": [
+    {
+      "id": "update",
+      "lastUpdate": 1618121666176
+    }
   ],
   "notif": [
     {
