@@ -732,144 +732,24 @@ sheets.spreadsheets.values.get({
 
       })
     }
+      
+//now, grab the most recent WRs off the front page (because I want to make harrison do all the work for me...)
 
-    //compare the new database with the old one (and yes, I'm copying more code lmao)
-    var argument 
-    var compareA = []
+})
 
-
-
-      var userData = users.value()
-
+ //for each user, check if they have subscribed to notifs
+var userData = users.value()
       userData.map((data) => {
-        
     if (notif.find({name: data.user.toLowerCase()}).value() == undefined) {
         return
     }
-
     if (notif.find({name: data.user.toLowerCase()}).value().wrUpdates == false) {
         return
     }
 
-      argument = data.user
-
-      var wrs = []
-
-      const l = mountains.value().length
-
-      for (var idd = 0; idd < l; idd ++) {
-
-      const trial = trials.value()[idd]
-
-      const trialData = mountains.find({name: trial}).value()
-      
-      var scores = []
-      for (var i = 3; i < length; i++) {
-          var score = trialData[i]
-          if (!(score == "" || score == undefined)) {
-          
-          scores.push({
-              user: i,
-              score: score
-          })        
-          
-        } 
-  }
-
-      if (trialData.asc) {
-          scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
-      } else {
-          scores.sort((a,b) => a.score.replace(",","") - b.score.replace(",",""))
-      }
-
-      if (scores[0].user == id) {
-          wrs.push({
-              name: trial,
-              score: scores[0].score 
-          })
-      }
-
-      i++
-  }
-  console.log(wrs) 
-  const wrData = {
-      name: data.user.toLowerCase(),
-      wrs: wrs
-  }
-  compareA.push(wrData)
-})
-
-//now to use the old mountain data to compare and get differences
-
-var compareB = []
-
-
-
- userData = users.value()
-
-userData.map((data) => {
-  
-if (notif.find({name: data.user.toLowerCase()}).value() == undefined) {
-  return
-}
-
-if (notif.find({name: data.user.toLowerCase()}).value().wrUpdates == false) {
-  return
-}
-
-argument = data.user
-
-var wrs = []
-
-const l = oldmountain.value().length
-
-for (var idd = 0; idd < l; idd ++) {
-
-const trial = trials.value()[idd]
-
-const trialData = oldmountain.find({name: trial}).value()
-
-var scores = []
-for (var i = 3; i < length; i++) {
-    var score = trialData[i]
-    if (!(score == "" || score == undefined || score == "-")) {
     
-    scores.push({
-        user: i,
-        score: score
-    })        
-    
-  } 
-}
-
-if (trialData.asc) {
-    scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
-} else {
-    scores.sort((a,b) => a.score.replace(",","") - b.score.replace(",",""))
-}
-
-if (users.find({id: scores[0].user}).value().id == data.id) {
-    wrs.push({
-        name: trial,
-        score: scores[0].score 
-    })
-}
-
-i++
-}
-console.log(wrs) 
-const wrData = {
-name: data.user.toLowerCase(),
-wrs: wrs
-}
-compareB.push(wrData)
-})
-
-console.log("A " + compareA)
-console.log("B " + compareB)
 
 })
-
 
 }
 
