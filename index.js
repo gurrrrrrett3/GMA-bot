@@ -673,7 +673,7 @@ function getData(auth) {
                     for (var i = 3; i < length; i ++) {
                         var score = row[i]
 
-                        if (score != undefined) {
+                        if (score != undefined && score != "-") {
                             challengeData[i] = score   
                         }
                     }
@@ -832,7 +832,7 @@ const trialData = oldmountain.find({name: trial}).value()
 var scores = []
 for (var i = 3; i < length; i++) {
     var score = trialData[i]
-    if (!(score == "" || score == undefined)) {
+    if (!(score == "" || score == undefined || score == "-")) {
     
     scores.push({
         user: i,
