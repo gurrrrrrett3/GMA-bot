@@ -732,8 +732,44 @@ sheets.spreadsheets.values.get({
 
       })
     }
-      
-//now, grab the most recent WRs off the front page (because I want to make harrison do all the work for me...)
+
+})
+
+//now, grab the most recent WRs off the front page (because I want to make harrison do all the work for me...) (Yes, I'm lazy ;]  )
+
+var recent10 = []
+
+sheets.spreadsheets.values.get({
+    spreadsheetId: '1_-NCikVtDi38_WlQhPBsccjvZSszVhKN5d7y14UnDRU',
+    range: 'GMA WR Home!X71:AA80',
+  }, (err, res) => {
+    if (err) {
+        console.log('The API returned an error: ' + err)
+        return
+    }
+    const rows = res.data.values;
+    if (rows.length) {
+      console.log('Data');
+      var id = 0
+            rows.map((row) => {
+
+
+            var trialData = {
+                id: id,
+                trial: row[0],
+                user: row[1],
+                score: row[3].replace(",",""),
+                date: row[2]
+            }
+            recent10.push(trialData)
+            id ++
+        });
+
+        console.log(recent10)
+
+      } else {
+          console.log("Error with grabbing the 10 recent WRs")
+      }
 
 })
 
@@ -750,6 +786,9 @@ var userData = users.value()
     
 
 })
+
+Client.user.setActivity(`on ${trials.value()[Math.floor(Math.random() * trials.value().length)]}`)
+
 
 }
 
