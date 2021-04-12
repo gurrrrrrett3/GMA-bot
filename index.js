@@ -12,7 +12,7 @@ const db = low(adapter)
 
 db.defaults({
         mountains: [],
-        recent: [],
+        oldmountain: [],
         trials: [],
         users: [],
         links:[],
@@ -22,7 +22,7 @@ db.defaults({
     .write()
 
     var mountains = db.get("mountains")
-    var recent = db.get("recent")
+    var oldmountain = db.get("oldmountain")
     var trials = db.get("trials")
     var users = db.get("users")
     var links = db.get("links")
@@ -111,11 +111,6 @@ Client.on("message", (message) => {
     //actual commands
 
     if (command == "update") {
-
-    if (message.author.id != "232510731067588608" ) {
-        return
-    }
-
       message.channel.send("Updating Database...")
         UpdateDatabase()
     }
@@ -545,10 +540,13 @@ function UpdateDatabase() {
 
 console.log("Updating database...")
 
-//load the top 10 most recent WR breaks into a variable and compare them after we load the new ones. 
-//This will allow us to see the new ones, and DM them letting them know that the status of their WR has changed.
+//load the entire database into a variable, and then compare differences afterwards
 
-recent = db.get("recent")
+const preMountains = mountains.value()
+
+db.set("oldmountain", preMountains).write()
+
+oldmountain = db.get("oldmountain")
 
 
     // If modifying these scopes, delete token.json.
@@ -735,139 +733,61 @@ sheets.spreadsheets.values.get({
       })
     }
 
-    //compare the new database with the old one (and yes, I'm copying more code lmao)
+})
+
+//now, grab the most recent WRs off the front page (because I want to make harrison do all the work for me...) (Yes, I'm lazy ;]  )
+
+var recent10 = []
+
+sheets.spreadsheets.values.get({
+    spreadsheetId: '1_-NCikVtDi38_WlQhPBsccjvZSszVhKN5d7y14UnDRU',
+    range: 'GMA WR Home!X71:AA80',
+  }, (err, res) => {
+    if (err) {
+        console.log('The API returned an error: ' + err)
+        return
+    }
+    const rows = res.data.values;
+    if (rows.length) {
+      console.log('Data');
+      var id = 0
+            rows.map((row) => {
 
 
-      var userData = users.value()
+            var trialData = {
+                id: id,
+                trial: row[0],
+                user: row[1],
+                score: row[3].replace(",",""),
+                date: row[2]
+            }
+            recent10.push(trialData)
+            id ++
+        });
 
+        console.log(recent10)
+
+      } else {
+          console.log("Error with grabbing the 10 recent WRs")
+      }
+
+})
+
+ //for each user, check if they have subscribed to notifs
+var userData = users.value()
       userData.map((data) => {
-        
     if (notif.find({name: data.user.toLowerCase()}).value() == undefined) {
         return
     }
-
     if (notif.find({name: data.user.toLowerCase()}).value().wrUpdates == false) {
         return
     }
 
-      argument = data.user
-
-      var wrs = []
-
-      const l = mountains.value().length
-
-      for (var idd = 0; idd < l; idd ++) {
-
-      const trial = trials.value()[idd]
-
-      const trialData = mountains.find({name: trial}).value()
-      
-      var scores = []
-      for (var i = 3; i < length; i++) {
-          var score = trialData[i]
-          if (!(score == "" || score == undefined)) {
-          
-          scores.push({
-              user: i,
-              score: score
-          })        
-          
-        } 
-  }
-
-      if (trialData.asc) {
-          scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
-      } else {
-          scores.sort((a,b) => a.score.replace(",","") - b.score.replace(",",""))
-      }
-
-      if (scores[0].user == id) {
-          wrs.push({
-              name: trial,
-              score: scores[0].score 
-          })
-      }
-
-      i++
-  }
-  console.log(wrs) 
-  const wrData = {
-      name: data.user.toLowerCase(),
-      wrs: wrs
-  }
-  compareA.push(wrData)
-})
-
-//now to use the old mountain data to compare and get differences
-
-var compareB = []
-
-
-
- userData = users.value()
-
-userData.map((data) => {
-  
-if (notif.find({name: data.user.toLowerCase()}).value() == undefined) {
-  return
-}
-
-if (notif.find({name: data.user.toLowerCase()}).value().wrUpdates == false) {
-  return
-}
-
-argument = data.user
-
-var wrs = []
-
-const l = oldmountain.value().length
-
-for (var idd = 0; idd < l; idd ++) {
-
-const trial = trials.value()[idd]
-
-const trialData = oldmountain.find({name: trial}).value()
-
-var scores = []
-for (var i = 3; i < length; i++) {
-    var score = trialData[i]
-    if (!(score == "" || score == undefined || score == "-")) {
     
-    scores.push({
-        user: i,
-        score: score
-    })        
-    
-  } 
-}
-
-if (trialData.asc) {
-    scores.sort((a,b) => b.score.replace(",","") - a.score.replace(",",""))
-} else {
-    scores.sort((a,b) => a.score.replace(",","") - b.score.replace(",",""))
-}
-
-if (users.find({id: scores[0].user}).value().id == data.id) {
-    wrs.push({
-        name: trial,
-        score: scores[0].score 
-    })
-}
-
-i++
-}
-console.log(wrs) 
-const wrData = {
-name: data.user.toLowerCase(),
-wrs: wrs
-}
-compareB.push(wrData)
-})
-
-console.log("A " + compareA)
-console.log("B " + compareB)
 
 })
+
+Client.user.setActivity(`on ${trials.value()[Math.floor(Math.random() * trials.value().length)]}`)
 
 
 }
