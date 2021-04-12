@@ -111,6 +111,11 @@ Client.on("message", (message) => {
     //actual commands
 
     if (command == "update") {
+
+    if (message.author.id != "232510731067588608" ) {
+        return
+    }
+
       message.channel.send("Updating Database...")
         UpdateDatabase()
     }
