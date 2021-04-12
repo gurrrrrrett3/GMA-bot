@@ -12,7 +12,7 @@ const db = low(adapter)
 
 db.defaults({
         mountains: [],
-        oldmountain: [],
+        recent: [],
         trials: [],
         users: [],
         links:[],
@@ -22,7 +22,7 @@ db.defaults({
     .write()
 
     var mountains = db.get("mountains")
-    var oldmountain = db.get("oldmountain")
+    var recent = db.get("recent")
     var trials = db.get("trials")
     var users = db.get("users")
     var links = db.get("links")
@@ -545,13 +545,10 @@ function UpdateDatabase() {
 
 console.log("Updating database...")
 
-//load the entire database into a variable, and then compare differences afterwards
+//load the top 10 most recent WR breaks into a variable and compare them after we load the new ones. 
+//This will allow us to see the new ones, and DM them letting them know that the status of their WR has changed.
 
-const preMountains = mountains.value()
-
-db.set("oldmountain", preMountains).write()
-
-oldmountain = db.get("oldmountain")
+recent = db.get("recent")
 
 
     // If modifying these scopes, delete token.json.
@@ -739,9 +736,6 @@ sheets.spreadsheets.values.get({
     }
 
     //compare the new database with the old one (and yes, I'm copying more code lmao)
-    var argument 
-    var compareA = []
-
 
 
       var userData = users.value()
