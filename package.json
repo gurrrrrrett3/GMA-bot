@@ -20,6 +20,6 @@
     "discord.js": "^12.5.3",
     "fuzzyset.js": "^1.0.6",
     "googleapis": "^39.2.0",
-    "lowdb": "^1.0.0"
+    "lowdb": "1.0.0"
   }
 }
