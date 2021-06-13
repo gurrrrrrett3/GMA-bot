@@ -18,6 +18,7 @@
   "homepage": "https://github.com/gurrrrrrett3/GMA-bot#readme",
   "dependencies": {
     "discord.js": "^12.5.3",
+    "dotenv": "^10.0.0",
     "fuzzyset.js": "^1.0.6",
     "googleapis": "^39.2.0",
     "lowdb": "1.0.0"

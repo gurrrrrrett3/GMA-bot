@@ -20,6 +20,8 @@ db.defaults({
   global: [],
 }).write();
 
+//init db variables
+
 var mountains = db.get("mountains");
 var oldmountain = db.get("oldmountain");
 var trials = db.get("trials");
@@ -38,10 +40,17 @@ const fs = require("fs");
 const readline = require("readline");
 const { google } = require("googleapis");
 
+//env
+
+const env = require("dotenv")
+
+env.config()
+
 //globals
 
 const prefix = "=";
-const length = 33; //UPDATE THIS IF HARRISON EVER ADDS MORE COLS
+const length = 40; //UPDATE THIS IF HARRISON EVER ADDS MORE COLS
+var enabled = false
 
 //On ready, init the bot
 
@@ -64,6 +73,9 @@ Client.on("message", (message) => {
     globals = global.find({ id: "update" }).value();
   }
 
+  //if it's been more than an hour, update
+
+
   if (Date.now() - globals.lastUpdate > 3600000) {
     globals.lastUpdate = Date.now();
     global.find({ id: "update" }).remove().write();
@@ -72,9 +84,13 @@ Client.on("message", (message) => {
     UpdateDatabase();
   }
 
+  //ignore messages without a prefix
+
   if (!message.content.startsWith(prefix)) {
     return;
   }
+
+  //ignore commands with group mentions
 
   if (
     message.content.includes("@everyone") ||
@@ -83,21 +99,46 @@ Client.on("message", (message) => {
     return;
   }
 
+  //create easy to use variables
+
   const msg = message.content.toLowerCase();
   var command = msg.replace(prefix, "").split(" ")[0];
 
   var argument = msg.replace(prefix, "").replace(command + " ", "");
 
+//log inputs for debugging
+
   console.log("--");
   console.log(command);
   console.log(argument);
 
+  var DISABLED_COMMANDS = [
+    "wr",
+    "user"
+  ]
+
   //actual commands
 
+
+
+  if (DISABLED_COMMANDS.includes(command)) {
+      message.channel.send("This command is currently disabled due to problems upstream.  Sorry about that!")
+      return
+  } else {
+
+
+
+
+  //REMOVE THIS COMMAND AFTER DEBUGGING
   if (command == "update") {
+    if (message.author.id != "232510731067588608") {
+      return
+    }
     message.channel.send("Updating Database...");
     UpdateDatabase();
   }
+
+//Trial Command
 
   if (command == "trial") {
     const list = FuzzySet(trials.value());
@@ -109,6 +150,8 @@ Client.on("message", (message) => {
       return;
     }
     const trial = list.get(argument)[0][1];
+
+    //Find the correct value
 
     const trialData = mountains.find({ name: trial }).value();
 
@@ -123,6 +166,8 @@ Client.on("message", (message) => {
       }
     }
 
+  //use the sorting direction flag to sort the scores correctly
+
     if (trialData.asc) {
       scores.sort(
         (a, b) => b.score.replace(",", "") - a.score.replace(",", "")
@@ -133,12 +178,16 @@ Client.on("message", (message) => {
       );
     }
 
+    //Create the embed
+
     var embed = new Discord.MessageEmbed();
     embed.setTitle(trial);
     embed.setDescription(`DD: ${trialData.dd} TD: ${trialData.td}`);
     embed.setTimestamp();
     embed.setColor("#ffffff");
     embed.setFooter(`${Math.round(list.get(argument)[0][0] * 100)}% Certain`);
+
+    //only show the top 10
 
     var embedLength;
 
@@ -156,8 +205,20 @@ Client.on("message", (message) => {
     message.channel.send(embed);
   }
 
+  //World Record Command
+
   if (command == "wr") {
     //make userlist as there is no point in storing it
+
+    
+
+    if (enabled = false) {
+      message.channel.send("This command is currently disabled due to problems upstream.  Sorry about that!")
+      return
+    } else {
+
+    
+
     const userData = users.value();
 
     var list = [];
@@ -189,6 +250,8 @@ Client.on("message", (message) => {
       }
     }
 
+    //Use fuzzy to guess the user based on input
+
     list = FuzzySet(list);
     const userGuess = list.get(argument);
     console.log(userGuess);
@@ -219,7 +282,7 @@ Client.on("message", (message) => {
       var scores = [];
       for (var i = 3; i < length; i++) {
         var score = trialData[i];
-        if (!(score == "" || score == undefined)) {
+        if (score != "" && score != undefined) {
           scores.push({
             user: i,
             score: score,
@@ -246,6 +309,8 @@ Client.on("message", (message) => {
 
       i++;
     }
+
+    //log for debugging
     console.log(wrs);
 
     var desc = "";
@@ -253,6 +318,17 @@ Client.on("message", (message) => {
     wrs.forEach((element) => {
       desc = `${desc}\n **${element.name}**: ${element.score}\n`;
     });
+
+  //if the user wants harrison, too bad
+
+    if (desc.length > 2048) {
+      message.channel.send(
+        "Sorry, I hit an error!\n```DiscordAPIError: Invalid Form Body\nembed.description: Must be 2048 or fewer in length.```"
+      );
+      return;
+    }
+
+    //create and send the embed
 
     var embed = new Discord.MessageEmbed();
     embed.setTitle(`${user}'s World Records`);
@@ -262,6 +338,9 @@ Client.on("message", (message) => {
     embed.setColor("#ffffff");
     message.channel.send(embed);
   }
+}
+
+  //link command
 
   if (command == "link") {
     //links your discord account to your leaderboard entry, which allows you to enable notifs and to get your userdata by ping
@@ -454,6 +533,8 @@ Client.on("message", (message) => {
     message.channel.send(embed);
   }
 
+  //Change notif settings command, no real point to this yet
+
   if (command == "notif") {
     if (links.find({ id: message.author.id }).value() == undefined) {
       message.channel.send(
@@ -535,7 +616,34 @@ Client.on("message", (message) => {
       });
     }
   }
+
+  //help command, pretty simple
+
+  if (command == "help") {
+    const helpEmbed = new Discord.MessageEmbed()
+      .setTitle("GMA Bot help")
+      .setDescription('Prefix is "="')
+      .setFooter(`Requested by ${message.member.user.username}`)
+      .setTimestamp()
+      .addField("help", "Shows this menu")
+      .addField("trial (Trial Name)", "Shows information about a trial")
+      .addField("wr (lb username, mention)", "Shows a user's world records")
+      .addField(
+        "user (lb username, mention)",
+        "Shows general information about a user"
+      )
+      .addField(
+        "link (Your lb username)",
+        "Links your discord account with your lb name"
+      )
+      .addField("notif", "Shows your notification panel");
+
+    message.channel.send(helpEmbed);
+  }
+}
 });
+
+//FUNCTIONS
 
 function UpdateDatabase() {
   console.log("Updating database...");
@@ -661,6 +769,8 @@ function UpdateDatabase() {
                   name = name.replace("*", "");
                   name = name.replace("*", "");
                 }
+
+                name = name.trim()
 
                 console.log(`${id} ${name}`);
 
@@ -812,4 +922,4 @@ function toggle(bool) {
   }
 }
 
-Client.login("ODI4NzM5OTAyNDc5OTI1Mjc5.YGt-LQ.C98aMbaI4laI-9NSYarBUvb52UM");
+Client.login(process.env.TOKEN);
